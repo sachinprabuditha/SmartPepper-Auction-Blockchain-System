@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
+import { io, Socket } from 'socket.io-client';
 import { auctionApi } from '@/lib/api';
 import { useAuctionStore, Auction, Bid } from '@/store/auctionStore';
 import { PEPPER_AUCTION_ABI, CONTRACT_ADDRESS } from '@/config/contracts';
 import { AuctionTimer } from '@/components/auction/AuctionTimer';
 import { BidHistory } from '@/components/auction/BidHistory';
 import { BidForm } from '@/components/auction/BidForm';
-import { Loader2, CheckCircle, XCircle, User, Package, Calendar } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, User, Package, Calendar, Users, Wifi } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // Helper function to convert snake_case to camelCase
@@ -35,6 +36,9 @@ export default function AuctionDetailPage() {
   const [auction, setAuction] = useState<Auction | null>(null);
   const [bids, setBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [connectedUsers, setConnectedUsers] = useState(0);
+  const [wsConnected, setWsConnected] = useState(false);
   
   const { joinAuction, leaveAuction, connected } = useAuctionStore();
 
@@ -70,6 +74,109 @@ export default function AuctionDetailPage() {
       };
     }
   }, [auction, address, connected, joinAuction, leaveAuction]);
+
+  // WebSocket connection for real-time updates
+  useEffect(() => {
+    if (!auction) return;
+
+    const newSocket = io('http://localhost:3002/auction', {
+      transports: ['websocket', 'polling'],
+    });
+
+    newSocket.on('connect', () => {
+      console.log('✅ WebSocket connected:', newSocket.id);
+      setWsConnected(true);
+      
+      // Join auction room
+      newSocket.emit('join_auction', {
+        auctionId: auction.auctionId,
+        userAddress: address || 'anonymous',
+      });
+    });
+
+    newSocket.on('auction_joined', (data) => {
+      console.log('Joined auction room:', data);
+      toast.success('Connected to live auction updates');
+      
+      // Update auction state from server
+      if (data.currentBid) {
+        setAuction(prev => prev ? {
+          ...prev,
+          currentBid: data.currentBid,
+          currentBidder: data.currentBidder,
+          bidCount: data.bidCount || prev.bidCount,
+        } : null);
+      }
+    });
+
+    newSocket.on('new_bid', (bidData) => {
+      console.log('🔔 New bid received:', bidData);
+      
+      // Update auction state
+      setAuction(prev => prev ? {
+        ...prev,
+        currentBid: bidData.amount,
+        currentBidder: bidData.bidder,
+        bidCount: (prev.bidCount || 0) + 1,
+      } : null);
+
+      // Add bid to history (prepend to top)
+      setBids(prev => [{
+        id: `${bidData.bidder}-${bidData.timestamp}`,
+        bidderAddress: bidData.bidder,
+        amount: bidData.amount,
+        timestamp: bidData.timestamp,
+        auctionId: auction.auctionId,
+      } as Bid, ...prev]);
+
+      // Show notification
+      const isOwnBid = bidData.bidder.toLowerCase() === address?.toLowerCase();
+      if (isOwnBid) {
+        toast.success('Your bid has been placed!');
+      } else {
+        toast.info(`New bid: ${(parseFloat(bidData.amount) / 1e18).toFixed(4)} ETH`);
+      }
+    });
+
+    newSocket.on('user_joined', (data) => {
+      console.log('User joined auction:', data.userAddress);
+      setConnectedUsers(prev => prev + 1);
+    });
+
+    newSocket.on('user_left', (data) => {
+      console.log('User left auction:', data.userAddress);
+      setConnectedUsers(prev => Math.max(0, prev - 1));
+    });
+
+    newSocket.on('auction_ended', (data) => {
+      console.log('🏁 Auction ended:', data);
+      setAuction(prev => prev ? { ...prev, status: 'ended' } : null);
+      toast.success('Auction has ended!');
+    });
+
+    newSocket.on('error', (error) => {
+      console.error('WebSocket error:', error);
+      toast.error('Connection error - retrying...');
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('❌ WebSocket disconnected');
+      setWsConnected(false);
+    });
+
+    setSocket(newSocket);
+
+    // Cleanup on unmount
+    return () => {
+      if (newSocket) {
+        newSocket.emit('leave_auction', {
+          auctionId: auction.auctionId,
+          userAddress: address || 'anonymous',
+        });
+        newSocket.close();
+      }
+    };
+  }, [auction, address]);
 
   if (loading) {
     return (
@@ -107,12 +214,26 @@ export default function AuctionDetailPage() {
                 <h1 className="text-3xl font-bold mb-2 dark:text-white">Auction #{auction.auctionId}</h1>
                 <p className="text-gray-600 dark:text-gray-400">Lot ID: {auction.lotId}</p>
               </div>
-              <div className="text-right">
+              <div className="flex flex-col items-end gap-2">
                 {isActive && (
                   <span className="badge-success flex items-center gap-2">
                     <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                     Live Auction
                   </span>
+                )}
+                {/* WebSocket connection status */}
+                {wsConnected && (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-green-50 border border-green-200 rounded-lg text-xs">
+                    <Wifi className="w-3 h-3 text-green-600" />
+                    <span className="text-green-700">Real-time updates active</span>
+                  </div>
+                )}
+                {/* Connected viewers */}
+                {connectedUsers > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg text-xs">
+                    <Users className="w-3 h-3 text-blue-600" />
+                    <span className="text-blue-700">{connectedUsers + 1} viewer{connectedUsers !== 0 ? 's' : ''}</span>
+                  </div>
                 )}
                 {auction.status === 'ended' && <span className="badge-warning">Ended</span>}
                 {auction.status === 'settled' && <span className="badge-info">Settled</span>}

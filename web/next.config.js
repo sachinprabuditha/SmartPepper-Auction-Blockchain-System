@@ -10,6 +10,35 @@ const nextConfig = {
   images: {
     domains: ['ipfs.io', 'gateway.pinata.cloud'],
   },
+  webpack: (config, { isServer }) => {
+    // Suppress module resolution warnings for optional dependencies
+    config.ignoreWarnings = [
+      { module: /node_modules\/@metamask\/sdk/ },
+      { module: /node_modules\/pino/ },
+      { message: /Can't resolve '@react-native-async-storage\/async-storage'/ },
+      { message: /Can't resolve 'pino-pretty'/ },
+    ];
+    
+    // Fallback for Node.js modules in browser
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    
+    return config;
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:3002/api/:path*',
+      },
+    ];
+  },
 }
 
 module.exports = nextConfig

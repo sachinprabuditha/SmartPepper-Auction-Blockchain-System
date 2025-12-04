@@ -1,0 +1,15 @@
+{
+  "name": "smartpepper-performance-tests",
+  "version": "1.0.0",
+  "description": "Performance testing suite for SmartPepper auction system",
+  "scripts": {
+    "test:latency": "node test/performance/auction-latency.test.js",
+    "test:compliance": "node test/performance/compliance-timing.test.js",
+    "test:gas": "cd ../blockchain && npx hardhat run test/gas-analysis.test.js --network localhost",
+    "test:all": "npm run test:latency && npm run test:compliance",
+    "test:report": "node scripts/generate-performance-report.js"
+  },
+  "keywords": ["performance", "testing", "auction", "blockchain"],
+  "author": "SmartPepper Team",
+  "license": "MIT"
+}

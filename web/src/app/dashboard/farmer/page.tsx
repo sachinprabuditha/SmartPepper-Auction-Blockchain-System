@@ -206,13 +206,21 @@ export default function FarmerDashboard() {
         {/* Quick Actions */}
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Link
+              href="/harvest/register"
+              className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg p-6 hover:from-emerald-600 hover:to-emerald-700 transition"
+            >
+              <div className="text-3xl mb-2">📝</div>
+              <div className="font-semibold">Register Harvest</div>
+              <div className="text-sm opacity-90">Create NFT passport</div>
+            </Link>
             <Link
               href="/create"
               className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg p-6 hover:from-green-600 hover:to-green-700 transition"
             >
               <div className="text-3xl mb-2">🌶️</div>
-              <div className="font-semibold">Create New Auction</div>
+              <div className="font-semibold">Create Auction</div>
               <div className="text-sm opacity-90">List your pepper lots</div>
             </Link>
             <Link
@@ -220,16 +228,16 @@ export default function FarmerDashboard() {
               className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:border-green-500 dark:hover:border-green-500 transition"
             >
               <div className="text-3xl mb-2">📊</div>
-              <div className="font-semibold dark:text-white">View All Auctions</div>
+              <div className="font-semibold dark:text-white">View Auctions</div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Track active bids</div>
             </Link>
             <Link
-              href="/dashboard/farmer/profile"
+              href="/dashboard/farmer/passports"
               className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:border-green-500 dark:hover:border-green-500 transition"
             >
-              <div className="text-3xl mb-2">👤</div>
-              <div className="font-semibold dark:text-white">My Profile</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Update your information</div>
+              <div className="text-3xl mb-2">🛡️</div>
+              <div className="font-semibold dark:text-white">My NFT Passports</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">View product passports</div>
             </Link>
           </div>
         </div>

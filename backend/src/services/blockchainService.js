@@ -26,6 +26,8 @@ class BlockchainService {
     this.provider = null;
     this.contract = null;
     this.signer = null;
+    this.pendingNonce = null; // Track pending nonce
+    this.nonceLock = Promise.resolve(); // Mutex for nonce management
   }
 
   async initialize() {
@@ -90,9 +92,64 @@ class BlockchainService {
     });
   }
 
+  /**
+   * Get the next nonce for transactions with proper synchronization
+   * Prevents nonce conflicts when sending multiple transactions rapidly
+   */
+  async getNextNonce() {
+    // Wait for any pending nonce operations to complete
+    await this.nonceLock;
+    
+    // Create a new lock for this operation
+    let releaseLock;
+    this.nonceLock = new Promise(resolve => {
+      releaseLock = resolve;
+    });
+
+    try {
+      if (!this.signer) {
+        throw new Error('Signer not initialized');
+      }
+
+      // Get current nonce from blockchain
+      const currentNonce = await this.provider.getTransactionCount(
+        this.signer.address,
+        'pending' // Include pending transactions
+      );
+
+      // If we have a pending nonce that's higher, use it
+      if (this.pendingNonce !== null && this.pendingNonce >= currentNonce) {
+        this.pendingNonce++;
+      } else {
+        this.pendingNonce = currentNonce;
+      }
+
+      logger.debug('Nonce allocated', { 
+        nonce: this.pendingNonce,
+        address: this.signer.address 
+      });
+
+      return this.pendingNonce;
+    } finally {
+      // Release the lock
+      releaseLock();
+    }
+  }
+
+  /**
+   * Reset nonce tracking (useful after errors)
+   */
+  resetNonce() {
+    this.pendingNonce = null;
+    logger.debug('Nonce tracking reset');
+  }
+
   async createLot(lotData) {
     try {
       const { lotId, variety, quantity, quality, harvestDate, certificateHash } = lotData;
+      
+      // Get next nonce with proper synchronization
+      const nonce = await this.getNextNonce();
       
       const tx = await this.contract.createLot(
         lotId,
@@ -100,15 +157,18 @@ class BlockchainService {
         ethers.parseUnits(quantity.toString(), 0),
         quality,
         harvestDate,
-        certificateHash
+        certificateHash,
+        { nonce } // Explicitly set nonce
       );
 
       const receipt = await tx.wait();
-      logger.info('Lot created on blockchain', { lotId, txHash: receipt.hash });
+      logger.info('Lot created on blockchain', { lotId, txHash: receipt.hash, nonce });
       
       return receipt.hash;
     } catch (error) {
       logger.error('Failed to create lot on blockchain:', error);
+      // Reset nonce on error to resync
+      this.resetNonce();
       throw error;
     }
   }
@@ -117,11 +177,15 @@ class BlockchainService {
     try {
       const { lotId, startPrice, reservePrice, duration } = auctionData;
       
+      // Get next nonce with proper synchronization
+      const nonce = await this.getNextNonce();
+      
       const tx = await this.contract.createAuction(
         lotId,
         ethers.parseEther(startPrice.toString()),
         ethers.parseEther(reservePrice.toString()),
-        duration
+        duration,
+        { nonce } // Explicitly set nonce
       );
 
       const receipt = await tx.wait();
@@ -171,7 +235,8 @@ class BlockchainService {
       logger.info('Auction created on blockchain', {
         lotId,
         auctionId: auctionId.toString(),
-        txHash: receipt.hash
+        txHash: receipt.hash,
+        nonce
       });
       
       return {
@@ -180,24 +245,32 @@ class BlockchainService {
       };
     } catch (error) {
       logger.error('Failed to create auction on blockchain:', error);
+      // Reset nonce on error to resync
+      this.resetNonce();
       throw error;
     }
   }
 
   async setComplianceStatus(auctionId, passed) {
     try {
-      const tx = await this.contract.setComplianceStatus(auctionId, passed);
+      // Get next nonce with proper synchronization
+      const nonce = await this.getNextNonce();
+      
+      const tx = await this.contract.setComplianceStatus(auctionId, passed, { nonce });
       const receipt = await tx.wait();
       
       logger.info('Compliance status set', {
         auctionId,
         passed,
-        txHash: receipt.hash
+        txHash: receipt.hash,
+        nonce
       });
       
       return receipt.hash;
     } catch (error) {
       logger.error('Failed to set compliance status:', error);
+      // Reset nonce on error to resync
+      this.resetNonce();
       throw error;
     }
   }

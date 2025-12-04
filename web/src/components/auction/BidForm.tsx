@@ -1,29 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
-import { Auction } from '@/store/auctionStore';
 import { PEPPER_AUCTION_ABI, CONTRACT_ADDRESS } from '@/config/contracts';
 import { auctionApi } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Loader2, TrendingUp } from 'lucide-react';
+import { Loader2, TrendingUp, Zap } from 'lucide-react';
 
 interface BidFormProps {
-  auction: Auction;
+  auctionId: number;
+  currentBid: string;
+  minimumBid: string;
 }
 
-export function BidForm({ auction }: BidFormProps) {
+export function BidForm({ auctionId, currentBid, minimumBid }: BidFormProps) {
   const { address, isConnected } = useAccount();
   const [bidAmount, setBidAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
-  const minBid = auction.currentBid === '0'
-    ? parseFloat(auction.startPrice)
-    : parseFloat(auction.currentBid) + 0.0001; // Min increment
+  const currentBidEth = parseFloat(currentBid || '0') / 1e18;
+  const minBidEth = currentBidEth > 0 
+    ? currentBidEth + 0.0001  // Min increment: 0.0001 ETH
+    : parseFloat(minimumBid || '0') / 1e18;
+
+  // Quick bid buttons
+  const quickBids = [
+    { label: 'Min', value: minBidEth },
+    { label: '+0.001', value: minBidEth + 0.001 },
+    { label: '+0.01', value: minBidEth + 0.01 },
+    { label: '+0.1', value: minBidEth + 0.1 },
+  ];
 
   const handleBidSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,52 +44,67 @@ export function BidForm({ auction }: BidFormProps) {
     }
 
     const bid = parseFloat(bidAmount);
-    if (isNaN(bid) || bid < minBid) {
-      toast.error(`Bid must be at least ${minBid.toFixed(4)} ETH`);
+    if (isNaN(bid) || bid < minBidEth) {
+      toast.error(`Bid must be at least ${minBidEth.toFixed(4)} ETH`);
       return;
     }
 
     try {
       setIsSubmitting(true);
+      
+      toast.loading('Submitting bid to blockchain...', { id: 'bid-tx' });
 
       // Write to smart contract
       writeContract({
         address: CONTRACT_ADDRESS as `0x${string}`,
         abi: PEPPER_AUCTION_ABI,
         functionName: 'placeBid',
-        args: [BigInt(auction.auctionId)],
+        args: [BigInt(auctionId)],
         value: parseEther(bidAmount),
       });
 
     } catch (error: any) {
       console.error('Bid error:', error);
-      toast.error(error.message || 'Failed to place bid');
+      toast.error(error.message || 'Failed to place bid', { id: 'bid-tx' });
       setIsSubmitting(false);
     }
   };
 
-  // Handle transaction success
-  if (isSuccess && hash) {
-    // Store bid in backend
-    auctionApi.placeBid(auction.auctionId, {
-      bidderAddress: address!,
-      amount: bidAmount,
-      txHash: hash,
-    }).then(() => {
-      toast.success('Bid placed successfully!');
-      setBidAmount('');
+  // Handle transaction confirmation
+  useEffect(() => {
+    if (isSuccess && hash && address) {
+      toast.success('Bid confirmed on blockchain!', { id: 'bid-tx' });
+      
+      // Record bid in backend
+      auctionApi.placeBid(auctionId, {
+        bidderAddress: address,
+        amount: bidAmount,
+        txHash: hash,
+      }).then(() => {
+        toast.success('Bid recorded successfully!');
+        setBidAmount('');
+        setIsSubmitting(false);
+      }).catch((error) => {
+        console.error('Failed to record bid:', error);
+        toast.error('Bid placed but failed to record in database');
+        setIsSubmitting(false);
+      });
+    }
+  }, [isSuccess, hash, address, auctionId, bidAmount]);
+
+  // Handle transaction error
+  useEffect(() => {
+    if (writeError) {
+      toast.error('Transaction rejected', { id: 'bid-tx' });
       setIsSubmitting(false);
-    }).catch((error) => {
-      console.error('Failed to record bid:', error);
-      toast.error('Bid placed but failed to record in database');
-      setIsSubmitting(false);
-    });
-  }
+    }
+  }, [writeError]);
 
   if (!isConnected) {
     return (
-      <div className="text-center py-6 text-gray-500 dark:text-gray-400">
-        <p className="mb-4">Connect your wallet to place a bid</p>
+      <div className="text-center py-6 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+        <TrendingUp className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+        <p className="text-gray-500 dark:text-gray-400 mb-4">Connect your wallet to place a bid</p>
       </div>
     );
   }
@@ -87,23 +112,43 @@ export function BidForm({ auction }: BidFormProps) {
   return (
     <form onSubmit={handleBidSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-2">
-          Your Bid (ETH)
+        <label className="block text-sm font-medium mb-2 dark:text-gray-300">
+          Your Bid Amount
         </label>
-        <input
-          type="number"
-          step="0.0001"
-          min={minBid}
-          value={bidAmount}
-          onChange={(e) => setBidAmount(e.target.value)}
-          placeholder={`Min: ${minBid.toFixed(4)} ETH`}
-          className="input"
+        <div className="relative">
+          <input
+            type="number"
+            step="0.0001"
+            min={minBidEth}
+            value={bidAmount}
+            onChange={(e) => setBidAmount(e.target.value)}
+            placeholder={`Minimum: ${minBidEth.toFixed(4)} ETH`}
+            className="input pr-16"
           disabled={isSubmitting || isPending || isConfirming}
-          required
-        />
+            required
+          />
+          <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+            ETH
+          </span>
+        </div>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          Minimum bid: {minBid.toFixed(4)} ETH
+          Current bid: {currentBidEth.toFixed(4)} ETH • Minimum: {minBidEth.toFixed(4)} ETH
         </p>
+      </div>
+
+      {/* Quick bid buttons */}
+      <div className="grid grid-cols-4 gap-2">
+        {quickBids.map((quick) => (
+          <button
+            key={quick.label}
+            type="button"
+            onClick={() => setBidAmount(quick.value.toFixed(4))}
+            className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors"
+            disabled={isSubmitting || isPending || isConfirming}
+          >
+            {quick.label}
+          </button>
+        ))}
       </div>
 
       <button
@@ -114,25 +159,26 @@ export function BidForm({ auction }: BidFormProps) {
         {(isPending || isConfirming) ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            {isPending ? 'Confirm in wallet...' : 'Processing...'}
+            {isPending ? 'Confirm in wallet...' : 'Confirming on blockchain...'}
           </>
         ) : (
           <>
-            <TrendingUp className="w-4 h-4" />
+            <Zap className="w-4 h-4" />
             Place Bid
           </>
         )}
       </button>
 
       {isPending && (
-        <p className="text-sm text-center text-yellow-600">
-          Waiting for wallet confirmation...
+        <p className="text-sm text-center text-yellow-600 dark:text-yellow-400">
+          Please confirm the transaction in your wallet
         </p>
       )}
 
       {isConfirming && (
-        <p className="text-sm text-center text-blue-600">
-          Waiting for transaction confirmation...
+        <p className="text-sm text-center text-blue-600 dark:text-blue-400">
+          <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+          Waiting for blockchain confirmation...
         </p>
       )}
 

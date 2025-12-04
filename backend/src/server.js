@@ -13,6 +13,27 @@ const auctionRoutes = require('./routes/auction');
 const lotRoutes = require('./routes/lot');
 const userRoutes = require('./routes/user');
 const complianceRoutes = require('./routes/compliance');
+const processingRoutes = require('./routes/processing');
+const certificationsRoutes = require('./routes/certifications');
+
+// Load NFT routes with error handling
+let nftPassportRoutes;
+try {
+  nftPassportRoutes = require('./routes/nftPassport');
+  logger.info('NFT Passport routes loaded successfully');
+} catch (err) {
+  logger.error('Failed to load NFT Passport routes:', err);
+  // Create a dummy router that returns errors
+  const express = require('express');
+  nftPassportRoutes = express.Router();
+  nftPassportRoutes.all('*', (req, res) => {
+    res.status(503).json({
+      success: false,
+      error: 'NFT Passport service not available'
+    });
+  });
+}
+
 const AuctionWebSocket = require('./websocket/auctionSocket');
 const BlockchainService = require('./services/blockchainService');
 
@@ -40,6 +61,9 @@ app.use('/api/auctions', auctionRoutes);
 app.use('/api/lots', lotRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/compliance', complianceRoutes);
+app.use('/api/processing', processingRoutes);
+app.use('/api/certifications', certificationsRoutes);
+app.use('/api/nft-passport', nftPassportRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -5,10 +5,34 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
+interface IPepperPassport {
+    function mintPassport(
+        address farmer,
+        string memory lotId,
+        string memory variety,
+        uint256 quantity,
+        string memory harvestDate,
+        string memory origin,
+        bytes32 certificateHash,
+        string memory metadataURI
+    ) external returns (uint256);
+    
+    function addProcessingLog(
+        uint256 tokenId,
+        string memory stage,
+        string memory description,
+        string memory location
+    ) external;
+    
+    function lotIdToTokenId(string memory lotId) external view returns (uint256);
+    function ownerOf(uint256 tokenId) external view returns (address);
+    function transferFrom(address from, address to, uint256 tokenId) external;
+}
+
 /**
  * @title PepperAuction
  * @dev Smart contract for live pepper auctions with escrow and compliance
- * @notice Part of SmartPepper blockchain traceability system
+ * @notice Part of SmartPepper blockchain traceability system with NFT passport integration
  */
 contract PepperAuction is Ownable, ReentrancyGuard, Pausable {
     
@@ -52,6 +76,7 @@ contract PepperAuction is Ownable, ReentrancyGuard, Pausable {
     }
     
     // State variables
+    IPepperPassport public passportContract;
     uint256 private auctionCounter;
     uint256 public platformFeePercent = 2; // 2% platform fee
     uint256 public minBidIncrement = 100; // Minimum bid increment in wei
@@ -117,6 +142,12 @@ contract PepperAuction is Ownable, ReentrancyGuard, Pausable {
         uint256 timestamp
     );
     
+    event PassportLinked(
+        string indexed lotId,
+        uint256 indexed tokenId,
+        address indexed farmer
+    );
+    
     // Modifiers
     modifier onlyFarmer(string memory lotId) {
         require(lots[lotId].farmer == msg.sender, "Only farmer can perform this action");
@@ -139,13 +170,24 @@ contract PepperAuction is Ownable, ReentrancyGuard, Pausable {
     }
     
     /**
-     * @notice Create a new pepper lot
+     * @notice Set the NFT Passport contract address
+     * @param _passportContract Address of PepperPassport contract
+     */
+    function setPassportContract(address _passportContract) external onlyOwner {
+        require(_passportContract != address(0), "Invalid passport contract");
+        passportContract = IPepperPassport(_passportContract);
+    }
+    
+    /**
+     * @notice Create a new pepper lot with NFT passport
      * @param lotId Unique identifier for the lot
      * @param variety Type of pepper (e.g., "Tellicherry", "Malabar")
      * @param quantity Quantity in kg
      * @param quality Quality grade (e.g., "Premium", "Grade A")
      * @param harvestDate Date of harvest
      * @param certificateHash IPFS hash of quality certificate
+     * @param origin Origin location
+     * @param metadataURI IPFS URI for NFT metadata
      */
     function createLot(
         string memory lotId,
@@ -153,7 +195,9 @@ contract PepperAuction is Ownable, ReentrancyGuard, Pausable {
         uint256 quantity,
         string memory quality,
         string memory harvestDate,
-        bytes32 certificateHash
+        bytes32 certificateHash,
+        string memory origin,
+        string memory metadataURI
     ) external whenNotPaused {
         require(!lotExists[lotId], "Lot already exists");
         require(quantity > 0, "Quantity must be greater than 0");
@@ -172,6 +216,22 @@ contract PepperAuction is Ownable, ReentrancyGuard, Pausable {
         });
         
         lotExists[lotId] = true;
+        
+        // Mint NFT Passport if contract is set
+        if (address(passportContract) != address(0)) {
+            uint256 tokenId = passportContract.mintPassport(
+                msg.sender,
+                lotId,
+                variety,
+                quantity,
+                harvestDate,
+                origin,
+                certificateHash,
+                metadataURI
+            );
+            
+            emit PassportLinked(lotId, tokenId, msg.sender);
+        }
         
         emit LotCreated(lotId, msg.sender, variety, quantity, certificateHash);
     }
@@ -217,6 +277,19 @@ contract PepperAuction is Ownable, ReentrancyGuard, Pausable {
         
         lots[lotId].status = LotStatus.InAuction;
         
+        // Add processing log to NFT passport
+        if (address(passportContract) != address(0)) {
+            uint256 tokenId = passportContract.lotIdToTokenId(lotId);
+            if (tokenId != 0) {
+                passportContract.addProcessingLog(
+                    tokenId,
+                    "Auction Created",
+                    string(abi.encodePacked("Auction #", uintToString(auctionId), " created")),
+                    ""
+                );
+            }
+        }
+        
         emit AuctionCreated(auctionId, lotId, msg.sender, startPrice, reservePrice, endTime);
         
         return auctionId;
@@ -241,6 +314,19 @@ contract PepperAuction is Ownable, ReentrancyGuard, Pausable {
         
         if (passed) {
             auctions[auctionId].status = AuctionStatus.Active;
+            
+            // Add processing log to NFT passport
+            if (address(passportContract) != address(0)) {
+                uint256 tokenId = passportContract.lotIdToTokenId(auctions[auctionId].lotId);
+                if (tokenId != 0) {
+                    passportContract.addProcessingLog(
+                        tokenId,
+                        "Compliance Passed",
+                        "Lot passed compliance checks and auction activated",
+                        ""
+                    );
+                }
+            }
         }
         
         emit ComplianceChecked(auctions[auctionId].lotId, passed, block.timestamp);
@@ -347,6 +433,25 @@ contract PepperAuction is Ownable, ReentrancyGuard, Pausable {
         auction.escrowAmount = 0;
         lots[auction.lotId].status = LotStatus.Sold;
         
+        // Transfer NFT Passport to winner
+        if (address(passportContract) != address(0)) {
+            uint256 tokenId = passportContract.lotIdToTokenId(auction.lotId);
+            if (tokenId != 0) {
+                address currentOwner = passportContract.ownerOf(tokenId);
+                if (currentOwner == auction.farmer) {
+                    passportContract.transferFrom(auction.farmer, auction.currentBidder, tokenId);
+                    
+                    // Add settlement log to passport
+                    passportContract.addProcessingLog(
+                        tokenId,
+                        "Auction Settled",
+                        string(abi.encodePacked("Sold for ", uintToString(totalAmount), " wei")),
+                        ""
+                    );
+                }
+            }
+        }
+        
         // Transfer funds
         (bool farmerSuccess, ) = auction.farmer.call{value: farmerAmount}("");
         require(farmerSuccess, "Farmer payment failed");
@@ -441,5 +546,27 @@ contract PepperAuction is Ownable, ReentrancyGuard, Pausable {
      */
     function getTotalAuctions() external view returns (uint256) {
         return auctionCounter;
+    }
+    
+    /**
+     * @notice Helper function to convert uint to string
+     */
+    function uintToString(uint256 value) internal pure returns (string memory) {
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
     }
 }

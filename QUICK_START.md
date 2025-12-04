@@ -173,6 +173,33 @@ docker restart smartpepper-redis
 - Import test account:
   - Private key: `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`
 
+## 🧪 Performance Testing (Research Validation)
+
+After the system is running, validate performance requirements:
+
+### Test 1: Auction Latency (<300ms requirement)
+
+```powershell
+cd backend
+npm run test:latency
+```
+
+### Test 2: Compliance Speed
+
+```powershell
+cd backend
+npm run test:compliance
+```
+
+### Test 3: Gas Cost Analysis
+
+```powershell
+cd blockchain
+npx hardhat run test/gas-analysis.test.js --network localhost
+```
+
+📖 **Full testing guide:** See `PERFORMANCE_TESTING_GUIDE.md`
+
 ## 📞 Need Help?
 
 Run this to check your system:

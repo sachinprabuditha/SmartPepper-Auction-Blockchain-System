@@ -30,15 +30,24 @@ router.get('/', async (req, res) => {
       countQuery += ` AND LOWER(farmer_address) = LOWER($${countParamIndex++})`;
       params.push(farmer);
       countParams.push(farmer);
+      logger.info('Filtering lots by farmer:', { farmer, farmerLower: farmer.toLowerCase() });
     }
 
     query += ` ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
     params.push(limit, offset);
 
+    logger.info('Executing lot query:', { query, params });
+    
     const [result, countResult] = await Promise.all([
       db.query(query, params),
       db.query(countQuery, countParams)
     ]);
+
+    logger.info('Query results:', { 
+      count: parseInt(countResult.rows[0].count),
+      lotsReturned: result.rows.length,
+      firstLot: result.rows[0] ? { lot_id: result.rows[0].lot_id, farmer: result.rows[0].farmer_address } : null
+    });
 
     res.json({
       success: true,
@@ -100,6 +109,10 @@ router.post('/', async (req, res) => {
       quantity,
       quality,
       harvestDate,
+      origin,
+      farmLocation,
+      organicCertified,
+      metadataURI,
       certificateHash,
       certificateIpfsUrl,
       txHash
@@ -113,15 +126,25 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Get or create farmer
+    logger.info('Creating new lot:', { 
+      lotId, 
+      farmerAddress, 
+      variety, 
+      quantity,
+      origin,
+      farmLocation 
+    });
+
+    // Get or create farmer (case-insensitive lookup)
     let farmerResult = await db.query(
-      'SELECT id FROM users WHERE wallet_address = $1',
+      'SELECT id FROM users WHERE LOWER(wallet_address) = LOWER($1)',
       [farmerAddress]
     );
 
     let farmerId;
     if (farmerResult.rows.length === 0) {
       // Create new farmer user
+      logger.info('Creating new farmer user:', { farmerAddress });
       const newFarmer = await db.query(
         `INSERT INTO users (wallet_address, user_type)
          VALUES ($1, $2)
@@ -129,17 +152,20 @@ router.post('/', async (req, res) => {
         [farmerAddress, 'farmer']
       );
       farmerId = newFarmer.rows[0].id;
+      logger.info('New farmer created with ID:', farmerId);
     } else {
       farmerId = farmerResult.rows[0].id;
+      logger.info('Found existing farmer with ID:', farmerId);
     }
 
     // Insert lot
     const result = await db.query(
       `INSERT INTO pepper_lots (
         lot_id, farmer_id, farmer_address, variety, quantity,
-        quality, harvest_date, certificate_hash, certificate_ipfs_url,
+        quality, harvest_date, origin, farm_location, organic_certified,
+        metadata_uri, certificate_hash, certificate_ipfs_url,
         blockchain_tx_hash, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *`,
       [
         lotId,
@@ -149,22 +175,69 @@ router.post('/', async (req, res) => {
         quantity,
         quality,
         harvestDate,
+        origin,
+        farmLocation,
+        organicCertified || false,
+        metadataURI,
         certificateHash,
         certificateIpfsUrl,
         txHash,
-        'created'
+        'available'
       ]
     );
 
+    logger.info('✅ Lot created successfully:', { 
+      lotId, 
+      farmerAddress, 
+      farmer_id: farmerId,
+      lot_db_id: result.rows[0].id 
+    });
+
     res.status(201).json({
       success: true,
-      lot: result.rows[0]
+      lot: result.rows[0],
+      message: 'Lot created successfully'
     });
   } catch (error) {
     logger.error('Error creating lot:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create lot',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/lots/farmer/:address
+ * Get lots for a specific farmer with optional compliance status filter
+ */
+router.get('/farmer/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const { compliance_status } = req.query;
+    
+    let query = 'SELECT * FROM pepper_lots WHERE LOWER(farmer_address) = LOWER($1)';
+    const params = [address];
+    
+    if (compliance_status) {
+      query += ' AND compliance_status = $2';
+      params.push(compliance_status);
+    }
+    
+    query += ' ORDER BY created_at DESC';
+    
+    const result = await db.query(query, params);
+    
+    res.json({
+      success: true,
+      lots: result.rows
+    });
+  } catch (error) {
+    logger.error('Error fetching farmer lots:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch lots',
       details: error.message
     });
   }
