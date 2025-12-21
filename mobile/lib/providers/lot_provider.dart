@@ -16,6 +16,16 @@ class Lot {
   final String? quality;
   final DateTime? createdAt;
 
+  // Blockchain traceability fields
+  final String? blockchainTxHash;
+  final String? certificateHash;
+  final String? certificateIpfsUrl;
+  final String? metadataUri;
+  final String? origin;
+  final String? farmLocation;
+  final bool? organicCertified;
+  final DateTime? complianceCheckedAt;
+
   Lot({
     required this.id,
     required this.lotId,
@@ -29,6 +39,14 @@ class Lot {
     required this.status,
     this.quality,
     this.createdAt,
+    this.blockchainTxHash,
+    this.certificateHash,
+    this.certificateIpfsUrl,
+    this.metadataUri,
+    this.origin,
+    this.farmLocation,
+    this.organicCertified,
+    this.complianceCheckedAt,
   });
 
   factory Lot.fromJson(Map<String, dynamic> json) {
@@ -51,6 +69,19 @@ class Lot {
       createdAt:
           DateTime.tryParse(json['created_at'] ?? json['createdAt'] ?? '') ??
               DateTime.now(),
+      blockchainTxHash: json['blockchain_tx_hash'] ?? json['blockchainTxHash'],
+      certificateHash: json['certificate_hash'] ?? json['certificateHash'],
+      certificateIpfsUrl:
+          json['certificate_ipfs_url'] ?? json['certificateIpfsUrl'],
+      metadataUri: json['metadata_uri'] ?? json['metadataUri'],
+      origin: json['origin'],
+      farmLocation: json['farm_location'] ?? json['farmLocation'],
+      organicCertified: json['organic_certified'] ?? json['organicCertified'],
+      complianceCheckedAt: json['compliance_checked_at'] != null
+          ? DateTime.tryParse(json['compliance_checked_at'])
+          : (json['complianceCheckedAt'] != null
+              ? DateTime.tryParse(json['complianceCheckedAt'])
+              : null),
     );
   }
 }

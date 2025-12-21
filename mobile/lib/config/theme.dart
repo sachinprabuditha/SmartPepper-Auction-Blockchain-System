@@ -24,6 +24,37 @@ class AppTheme {
       primaryColor: primaryColor,
       scaffoldBackgroundColor: forestGreen,
 
+      // Default text style for entire app (including TextFields)
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: Colors.white, // Changed from dark color
+        ),
+        displayMedium: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+        displaySmall: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+        bodyLarge: TextStyle(fontSize: 16, color: Colors.white),
+        bodyMedium: TextStyle(fontSize: 14, color: Colors.white70),
+        // This is what TextFields use by default
+        bodySmall: TextStyle(fontSize: 12, color: Colors.white60),
+        labelLarge: TextStyle(fontSize: 14, color: Colors.white),
+        labelMedium: TextStyle(fontSize: 12, color: Colors.white70),
+        labelSmall: TextStyle(fontSize: 10, color: Colors.white60),
+      ),
+
       colorScheme: const ColorScheme.light(
         primary: pepperGold,
         secondary: sriLankanLeaf,
@@ -63,6 +94,11 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: deepEmerald,
+        // Add explicit text styling
+        labelStyle: const TextStyle(color: Colors.white70),
+        hintStyle: const TextStyle(color: Colors.white54),
+        prefixIconColor: pepperGold,
+        suffixIconColor: pepperGold,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: pepperGold),
@@ -85,29 +121,11 @@ class AppTheme {
         ),
       ),
 
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(
-          fontSize: 32,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF111827),
-        ),
-        displayMedium: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF111827),
-        ),
-        displaySmall: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF111827),
-        ),
-        headlineMedium: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF111827),
-        ),
-        bodyLarge: TextStyle(fontSize: 16, color: Color(0xFF374151)),
-        bodyMedium: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+      // Set default text color for inputs
+      textSelectionTheme: const TextSelectionThemeData(
+        cursorColor: pepperGold,
+        selectionColor: pepperGold,
+        selectionHandleColor: pepperGold,
       ),
 
       // fontFamily: 'Poppins', // Commented out until font files are added

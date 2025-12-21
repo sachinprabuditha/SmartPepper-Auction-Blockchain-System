@@ -1,16 +1,22 @@
 class Environment {
   // API Configuration
+  // IMPORTANT: Update this based on your device type:
+  // - Android Emulator: 'http://10.0.2.2:3002/api'
+  // - iOS Simulator: 'http://localhost:3002/api'
+  // - Physical Device: Use your computer's IP (check with ipconfig/ifconfig)
+
   static const String apiBaseUrl =
-      'http://10.0.2.2:3002/api'; // Android emulator
-  // For iOS simulator use: 'http://localhost:3002/api'
-  // For physical device use your machine's IP: 'http://192.168.1.x:3002/api'
+      'http://192.168.8.116:3002/api'; // Physical device (Wi-Fi)
+
+  // Uncomment for emulator:
+  // static const String apiBaseUrl = 'http://10.0.2.2:3002/api';
 
   // Blockchain Configuration
-  static const String blockchainRpcUrl = 'http://10.0.2.2:8545';
+  static const String blockchainRpcUrl = 'http://192.168.8.116:8545';
   static const String contractAddress = '0xYourDeployedContractAddress';
 
   // WebSocket Configuration
-  static const String wsUrl = 'ws://10.0.2.2:3002';
+  static const String wsUrl = 'ws://192.168.8.116:3002';
 
   // App Configuration
   static const String appName = 'SmartPepper';

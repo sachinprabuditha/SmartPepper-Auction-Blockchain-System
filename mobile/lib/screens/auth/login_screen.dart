@@ -32,15 +32,26 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final authProvider = context.read<AuthProvider>();
-      await authProvider.login(
+      final success = await authProvider.login(
         _emailController.text.trim(),
         _passwordController.text,
       );
 
       if (!mounted) return;
 
-      // Navigate to main app with bottom navigation
-      context.go('/home');
+      if (success) {
+        // Navigate to main app with bottom navigation
+        context.go('/home');
+      } else {
+        // Show error from auth provider
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authProvider.error ??
+                'Login failed. Please check your credentials.'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

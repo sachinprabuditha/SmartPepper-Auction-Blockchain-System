@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/auction_provider.dart';
 import '../../providers/lot_provider.dart';
 import '../../config/theme.dart';
+import '../farmer/create_lot_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -56,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: AppTheme.forestGreen,
         elevation: 0,
         title: const Text(
-          'smartPepper',
+          'SmartPepper',
           style: TextStyle(
             color: AppTheme.pepperGold,
             fontWeight: FontWeight.bold,
@@ -306,14 +307,43 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: action['icon'] as IconData,
           label: action['label'] as String,
           color: action['color'] as Color,
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${action['label']} tapped')),
-            );
-          },
+          onTap: () =>
+              _handleQuickAction(context, action['label'] as String, role),
         );
       },
     );
+  }
+
+  void _handleQuickAction(
+      BuildContext context, String actionLabel, String role) {
+    if (role.toLowerCase() == 'farmer') {
+      switch (actionLabel) {
+        case 'Create Lot':
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CreateLotScreen()),
+          );
+          break;
+        case 'Scan QR':
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('QR Scanner - Coming soon')),
+          );
+          break;
+        case 'Track':
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Tracking - Coming soon')),
+          );
+          break;
+        default:
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$actionLabel tapped')),
+          );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$actionLabel tapped')),
+      );
+    }
   }
 
   List<Map<String, dynamic>> _getQuickActionsForRole(String role) {

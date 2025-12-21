@@ -154,6 +154,25 @@ class AuctionProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> createAuction(Map<String, dynamic> auctionData) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await apiService.createAuction(auctionData);
+      await fetchAuctions(); // Refresh auction list
+      _loading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      _loading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   void _updateCurrentAuction(dynamic data) {
     if (_currentAuction != null && data['auctionId'] == _currentAuction!.id) {
       // Update current auction with new bid data

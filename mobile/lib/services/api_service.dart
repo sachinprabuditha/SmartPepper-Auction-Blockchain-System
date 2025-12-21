@@ -10,8 +10,9 @@ class ApiService {
     _dio = Dio(
       BaseOptions(
         baseUrl: Environment.apiBaseUrl,
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
+        connectTimeout:
+            const Duration(seconds: 60), // Increased for physical devices
+        receiveTimeout: const Duration(seconds: 60),
         headers: {'Content-Type': 'application/json'},
       ),
     );
@@ -39,6 +40,17 @@ class ApiService {
     try {
       final response = await _dio.post('/auth/register', data: data);
       return response.data;
+    } on DioException catch (e) {
+      if (e.response != null && e.response?.data != null) {
+        // Extract error message from response
+        final errorData = e.response!.data;
+        if (errorData is Map && errorData.containsKey('error')) {
+          throw Exception(errorData['error']);
+        } else if (errorData is Map && errorData.containsKey('message')) {
+          throw Exception(errorData['message']);
+        }
+      }
+      throw Exception('Network error. Please check your connection.');
     } catch (e) {
       rethrow;
     }
@@ -48,6 +60,17 @@ class ApiService {
     try {
       final response = await _dio.post('/auth/login', data: data);
       return response.data;
+    } on DioException catch (e) {
+      if (e.response != null && e.response?.data != null) {
+        // Extract error message from response
+        final errorData = e.response!.data;
+        if (errorData is Map && errorData.containsKey('error')) {
+          throw Exception(errorData['error']);
+        } else if (errorData is Map && errorData.containsKey('message')) {
+          throw Exception(errorData['message']);
+        }
+      }
+      throw Exception('Network error. Please check your connection.');
     } catch (e) {
       rethrow;
     }
@@ -88,6 +111,17 @@ class ApiService {
     try {
       final response = await _dio.post('/lots', data: data);
       return response.data;
+    } on DioException catch (e) {
+      if (e.response != null && e.response?.data != null) {
+        // Extract error message from response
+        final errorData = e.response!.data;
+        if (errorData is Map && errorData.containsKey('error')) {
+          throw Exception(errorData['error']);
+        } else if (errorData is Map && errorData.containsKey('message')) {
+          throw Exception(errorData['message']);
+        }
+      }
+      throw Exception('Network error. Please check your connection.');
     } catch (e) {
       rethrow;
     }

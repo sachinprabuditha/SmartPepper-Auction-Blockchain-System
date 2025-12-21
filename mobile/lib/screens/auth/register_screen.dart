@@ -41,7 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       final authProvider = context.read<AuthProvider>();
-      await authProvider.register(
+      final success = await authProvider.register(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -51,8 +51,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!mounted) return;
 
-      // Navigate to main app with bottom navigation
-      context.go('/home');
+      if (success) {
+        // Navigate to main app with bottom navigation
+        context.go('/home');
+      } else {
+        // Show error from auth provider
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                authProvider.error ?? 'Registration failed. Please try again.'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

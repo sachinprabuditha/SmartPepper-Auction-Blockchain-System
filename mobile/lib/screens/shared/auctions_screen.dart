@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/auction_provider.dart';
 import '../../config/theme.dart';
+import 'auction_details_screen.dart';
+import '../farmer/create_auction_screen.dart';
 
 class AuctionsScreen extends StatefulWidget {
   const AuctionsScreen({super.key});
@@ -88,8 +90,11 @@ class _AuctionsScreenState extends State<AuctionsScreen>
           ? FloatingActionButton.extended(
               heroTag: 'auctions_fab',
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Create new auction')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateAuctionScreen(),
+                  ),
                 );
               },
               backgroundColor: AppTheme.forestGreen,
@@ -213,9 +218,11 @@ class _AuctionsScreenState extends State<AuctionsScreen>
       ),
       child: InkWell(
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('View auction details: ${auction.auctionId}')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AuctionDetailsScreen(auction: auction),
+            ),
           );
         },
         borderRadius: BorderRadius.circular(16),
@@ -360,8 +367,12 @@ class _AuctionsScreenState extends State<AuctionsScreen>
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Place bid')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              AuctionDetailsScreen(auction: auction),
+                        ),
                       );
                     },
                     style: ElevatedButton.styleFrom(

@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/lot_provider.dart';
 import '../../config/theme.dart';
+import '../farmer/create_lot_screen.dart';
+import '../farmer/lot_details_screen.dart';
 
 class LotsScreen extends StatefulWidget {
   const LotsScreen({super.key});
@@ -96,8 +98,10 @@ class _LotsScreenState extends State<LotsScreen> {
           ? FloatingActionButton.extended(
               heroTag: 'lots_fab',
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Create new lot')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const CreateLotScreen()),
                 );
               },
               backgroundColor: AppTheme.forestGreen,
@@ -206,7 +210,7 @@ class _LotsScreenState extends State<LotsScreen> {
     );
   }
 
-  Widget _buildLotCard(dynamic lot) {
+  Widget _buildLotCard(Lot lot) {
     final status = lot.status.toLowerCase();
     final Color statusColor = _getStatusColor(status);
     final IconData statusIcon = _getStatusIcon(status);
@@ -223,8 +227,11 @@ class _LotsScreenState extends State<LotsScreen> {
       ),
       child: InkWell(
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('View lot details: ${lot.lotId}')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => LotDetailsScreen(lot: lot),
+            ),
           );
         },
         borderRadius: BorderRadius.circular(16),

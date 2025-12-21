@@ -141,6 +141,35 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateWalletAddress(String walletAddress) async {
+    try {
+      _loading = true;
+      notifyListeners();
+
+      // TODO: Call backend API to update wallet address
+      // For now, just update locally
+      if (_user != null) {
+        _user = User(
+          id: _user!.id,
+          email: _user!.email,
+          name: _user!.name,
+          role: _user!.role,
+          walletAddress: walletAddress,
+          verified: _user!.verified,
+        );
+        await storageService.saveWalletAddress(walletAddress);
+      }
+
+      _loading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _loading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();
