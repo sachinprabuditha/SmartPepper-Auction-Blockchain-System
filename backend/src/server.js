@@ -16,6 +16,8 @@ const complianceRoutes = require('./routes/compliance');
 const processingRoutes = require('./routes/processing');
 const certificationsRoutes = require('./routes/certifications');
 const adminRoutes = require('./routes/admin');
+const governanceRoutes = require('./routes/governance');
+const { startAuctionStatusMonitor } = require('./services/auctionStatusService');
 
 // Load NFT routes with error handling
 let nftPassportRoutes;
@@ -66,6 +68,7 @@ app.use('/api/processing', processingRoutes);
 app.use('/api/certifications', certificationsRoutes);
 app.use('/api/nft-passport', nftPassportRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/governance', governanceRoutes);
 app.use('/api/traceability', require('./routes/traceability'));
 
 // Health check
@@ -129,6 +132,12 @@ async function initialize() {
       logger.info('Blockchain service initialized');
     } catch (blockchainError) {
       logger.warn('Blockchain service initialization failed (continuing without blockchain):', blockchainError.message);
+    }
+
+    // Start auction status monitor if database is connected
+    if (dbConnected && !db.isMock) {
+      startAuctionStatusMonitor();
+      logger.info('✅ Auction status monitor started (checks every 60 seconds)');
     }
 
     // Initialize WebSocket

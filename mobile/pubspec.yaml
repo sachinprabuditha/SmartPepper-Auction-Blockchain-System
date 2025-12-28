@@ -53,6 +53,7 @@ dependencies:
 
   # Network
   dio: ^5.4.0
+  pretty_dio_logger: ^1.4.0
   connectivity_plus: ^5.0.2
 
   # Utils

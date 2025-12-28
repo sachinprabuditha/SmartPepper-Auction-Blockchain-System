@@ -5,6 +5,7 @@ import '../../providers/auction_provider.dart';
 import '../../config/theme.dart';
 import 'auction_details_screen.dart';
 import '../farmer/create_auction_screen.dart';
+import '../farmer/auction_monitor_screen.dart';
 
 class AuctionsScreen extends StatefulWidget {
   const AuctionsScreen({super.key});
@@ -23,7 +24,12 @@ class _AuctionsScreenState extends State<AuctionsScreen>
     _tabController = TabController(length: 3, vsync: this);
     // Fetch auctions when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AuctionProvider>().fetchAuctions();
+      final authProvider = context.read<AuthProvider>();
+      final isFarmer = authProvider.user?.role.toLowerCase() == 'farmer';
+      final farmerAddress = isFarmer ? authProvider.user?.walletAddress : null;
+      context
+          .read<AuctionProvider>()
+          .fetchAuctions(farmerAddress: farmerAddress);
     });
   }
 
@@ -43,9 +49,9 @@ class _AuctionsScreenState extends State<AuctionsScreen>
       appBar: AppBar(
         backgroundColor: AppTheme.forestGreen,
         elevation: 0,
-        title: const Text(
-          'Auctions',
-          style: TextStyle(
+        title: Text(
+          isFarmer ? 'My Auctions' : 'Auctions',
+          style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
@@ -106,12 +112,25 @@ class _AuctionsScreenState extends State<AuctionsScreen>
   }
 
   Widget _buildAuctionList(String status) {
+    final authProvider = context.watch<AuthProvider>();
     final auctionProvider = context.watch<AuctionProvider>();
+    final isFarmer = authProvider.user?.role.toLowerCase() == 'farmer';
+    final farmerAddress = isFarmer ? authProvider.user?.walletAddress : null;
+
+    // Map display status to backend statuses
+    List<String> statusFilters = [];
+    if (status == 'active') {
+      statusFilters = ['active'];
+    } else if (status == 'upcoming') {
+      statusFilters = ['created'];
+    } else if (status == 'completed') {
+      statusFilters = ['ended', 'settled', 'failed_compliance'];
+    }
 
     // Filter auctions by status
     final filteredAuctions = auctionProvider.auctions
         .where(
-            (auction) => auction.status.toLowerCase() == status.toLowerCase())
+            (auction) => statusFilters.contains(auction.status.toLowerCase()))
         .toList();
 
     if (auctionProvider.loading) {
@@ -131,7 +150,8 @@ class _AuctionsScreenState extends State<AuctionsScreen>
             ),
             const SizedBox(height: 8),
             TextButton(
-              onPressed: () => auctionProvider.fetchAuctions(),
+              onPressed: () =>
+                  auctionProvider.fetchAuctions(farmerAddress: farmerAddress),
               child: const Text('Retry'),
             ),
           ],
@@ -151,7 +171,10 @@ class _AuctionsScreenState extends State<AuctionsScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'No $status auctions',
+              isFarmer
+                  ? 'No $status auctions yet\nCreate your first auction to get started!'
+                  : 'No $status auctions',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[600],
@@ -164,7 +187,7 @@ class _AuctionsScreenState extends State<AuctionsScreen>
 
     return RefreshIndicator(
       onRefresh: () async {
-        await auctionProvider.fetchAuctions();
+        await auctionProvider.fetchAuctions(farmerAddress: farmerAddress);
       },
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
@@ -218,10 +241,15 @@ class _AuctionsScreenState extends State<AuctionsScreen>
       ),
       child: InkWell(
         onTap: () {
+          final authProvider = context.read<AuthProvider>();
+          final isFarmer = authProvider.user?.role.toLowerCase() == 'farmer';
+
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AuctionDetailsScreen(auction: auction),
+              builder: (context) => isFarmer
+                  ? FarmerAuctionMonitorScreen(auctionId: auction.auctionId)
+                  : AuctionDetailsScreen(auction: auction),
             ),
           );
         },
@@ -301,7 +329,9 @@ class _AuctionsScreenState extends State<AuctionsScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Current Bid',
+                        auction.currentBid > 0
+                            ? 'Current Bid'
+                            : 'Starting Price',
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 12,
@@ -309,7 +339,7 @@ class _AuctionsScreenState extends State<AuctionsScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '\$${auction.currentBid.toStringAsFixed(2)}',
+                        '\$${(auction.currentBid > 0 ? auction.currentBid : auction.startingPrice).toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -367,11 +397,17 @@ class _AuctionsScreenState extends State<AuctionsScreen>
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
+                      final authProvider = context.read<AuthProvider>();
+                      final isFarmer =
+                          authProvider.user?.role.toLowerCase() == 'farmer';
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              AuctionDetailsScreen(auction: auction),
+                          builder: (context) => isFarmer
+                              ? FarmerAuctionMonitorScreen(
+                                  auctionId: auction.auctionId)
+                              : AuctionDetailsScreen(auction: auction),
                         ),
                       );
                     },

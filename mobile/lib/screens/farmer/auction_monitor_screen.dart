@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
-import '../../models/auction.dart';
+import '../../providers/auction_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../models/lot.dart';
 import '../../services/socket_service.dart';
 import '../../services/api_service.dart';
@@ -52,20 +53,31 @@ class _FarmerAuctionMonitorScreenState
     try {
       final apiService = context.read<ApiService>();
 
-      // Fetch auction details
-      final auctionResponse =
-          await apiService.get('/auctions/${widget.auctionId}');
-      final auction = Auction.fromJson(auctionResponse);
+      // Fetch all auctions and find the one we need
+      final auctionsResponse = await apiService.getAuctions();
+      final auction = auctionsResponse.firstWhere(
+        (a) => Auction.fromJson(a).auctionId == widget.auctionId,
+        orElse: () => throw Exception('Auction not found'),
+      );
+      final auctionObj = Auction.fromJson(auction);
 
       // Fetch lot details
-      final lotResponse = await apiService.get('/lots/${auction.lotId}');
-      final lot = Lot.fromJson(lotResponse);
+      final lotsResponse = await apiService.getLots();
+      final lotData = lotsResponse.firstWhere(
+        (l) => Lot.fromJson(l).lotId == auctionObj.lotId,
+        orElse: () => throw Exception('Lot not found'),
+      );
+      final lot = Lot.fromJson(lotData);
 
       if (mounted) {
         setState(() {
-          _auction = auction;
+          _auction = auctionObj;
           _lot = lot;
-          _timeRemaining = auction.timeRemaining;
+          // Calculate time remaining
+          _timeRemaining = auctionObj.endTime.difference(DateTime.now());
+          if (_timeRemaining.isNegative) {
+            _timeRemaining = Duration.zero;
+          }
           _isLoading = false;
         });
       }
@@ -87,33 +99,66 @@ class _FarmerAuctionMonitorScreenState
 
     // Listen for bid updates
     socketService.on('bid_placed', (data) {
-      if (data['auctionId'] == widget.auctionId) {
+      if (data['auctionId'] == widget.auctionId ||
+          data['auctionId'].toString() == _auction?.auctionId) {
         setState(() {
-          _auction = Auction.fromJson({
-            ..._auction!.toJson(),
-            'currentBid': data['bidAmount'],
-            'currentBidder': data['bidderId'],
-            'currentBidderName': data['bidderName'],
-            'bidderCount': data['bidderCount'],
-          });
+          if (_auction != null) {
+            _auction = Auction(
+              id: _auction!.id,
+              auctionId: _auction!.auctionId,
+              tokenId: _auction!.tokenId,
+              lotId: _auction!.lotId,
+              farmerAddress: _auction!.farmerAddress,
+              startingPrice: _auction!.startingPrice,
+              currentBid:
+                  double.tryParse(data['bidAmount']?.toString() ?? '0') ??
+                      _auction!.currentBid,
+              highestBidder:
+                  data['bidderId']?.toString() ?? _auction!.highestBidder,
+              startTime: _auction!.startTime,
+              endTime: _auction!.endTime,
+              status: _auction!.status,
+              variety: _auction!.variety,
+              quantity: _auction!.quantity,
+              blockchainTxHash: _auction!.blockchainTxHash,
+              compliancePassed: _auction!.compliancePassed,
+            );
+          }
         });
       }
     });
 
     // Listen for auction end
     socketService.on('auction_ended', (data) {
-      if (data['auctionId'] == widget.auctionId) {
+      if (data['auctionId'] == widget.auctionId ||
+          data['auctionId'].toString() == _auction?.auctionId) {
         setState(() {
-          _auction = Auction.fromJson({
-            ..._auction!.toJson(),
-            'status': 'ended',
-            'winnerAddress': data['winnerAddress'],
-            'winnerName': data['winnerName'],
-            'finalPrice': data['finalPrice'],
-          });
+          if (_auction != null) {
+            _auction = Auction(
+              id: _auction!.id,
+              auctionId: _auction!.auctionId,
+              tokenId: _auction!.tokenId,
+              lotId: _auction!.lotId,
+              farmerAddress: _auction!.farmerAddress,
+              startingPrice: _auction!.startingPrice,
+              currentBid:
+                  double.tryParse(data['finalPrice']?.toString() ?? '0') ??
+                      _auction!.currentBid,
+              highestBidder:
+                  data['winnerAddress']?.toString() ?? _auction!.highestBidder,
+              startTime: _auction!.startTime,
+              endTime: _auction!.endTime,
+              status: 'ended',
+              variety: _auction!.variety,
+              quantity: _auction!.quantity,
+              blockchainTxHash: _auction!.blockchainTxHash,
+              compliancePassed: _auction!.compliancePassed,
+            );
+          }
         });
 
-        _showAuctionEndDialog();
+        _showAuctionEndDialog(
+            data['winnerName']?.toString(), data['finalPrice']);
       }
     });
 
@@ -130,8 +175,10 @@ class _FarmerAuctionMonitorScreenState
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_auction != null && mounted) {
         setState(() {
-          _timeRemaining = _auction!.timeRemaining;
-          if (_timeRemaining == Duration.zero) {
+          // Calculate time remaining from endTime
+          _timeRemaining = _auction!.endTime.difference(DateTime.now());
+          if (_timeRemaining.isNegative) {
+            _timeRemaining = Duration.zero;
             timer.cancel();
           }
         });
@@ -139,7 +186,10 @@ class _FarmerAuctionMonitorScreenState
     });
   }
 
-  void _showAuctionEndDialog() {
+  void _showAuctionEndDialog(String? winnerName, dynamic finalPrice) {
+    final finalPriceDouble =
+        double.tryParse(finalPrice?.toString() ?? '0') ?? 0.0;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -148,14 +198,14 @@ class _FarmerAuctionMonitorScreenState
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_auction?.winnerName != null)
+            if (winnerName != null)
               Text(
-                'Congratulations! Your lot sold to ${_auction!.winnerName}',
+                'Congratulations! Your lot sold to $winnerName',
                 textAlign: TextAlign.center,
               ),
             const SizedBox(height: 16),
             Text(
-              'Final Price: LKR ${_auction?.finalPrice?.toStringAsFixed(2) ?? "0.00"}',
+              'Final Price: \$${finalPriceDouble.toStringAsFixed(2)}',
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -168,13 +218,63 @@ class _FarmerAuctionMonitorScreenState
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              context.go('/farmer/home');
+              Navigator.pop(context); // Go back to auctions list
             },
             child: const Text('Close'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _requestEmergencyCancellation() async {
+    // Show reason selection dialog
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => _EmergencyCancellationDialog(),
+    );
+
+    if (reason == null || reason.isEmpty) return;
+
+    try {
+      final apiService = context.read<ApiService>();
+      final authProvider = context.read<AuthProvider>();
+
+      await apiService.post('/auctions/request-cancellation', {
+        'auctionId': widget.auctionId,
+        'reason': reason,
+        'farmerAddress': authProvider.user?.walletAddress ?? '',
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Cancellation request submitted. Admin will review.',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit request: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -219,6 +319,15 @@ class _FarmerAuctionMonitorScreenState
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          // Emergency cancellation button
+          if (_auction!.status == 'created' || _auction!.status == 'active')
+            IconButton(
+              icon: const Icon(Icons.cancel_outlined, color: Colors.white),
+              tooltip: 'Request Cancellation',
+              onPressed: _requestEmergencyCancellation,
+            ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadAuctionData,
@@ -258,14 +367,31 @@ class _FarmerAuctionMonitorScreenState
     IconData icon;
     String text;
 
-    if (_auction!.isLive) {
+    if (_auction!.status == 'active') {
       backgroundColor = Colors.green;
       icon = Icons.circle;
       text = 'LIVE AUCTION';
-    } else if (_auction!.isEnded) {
+    } else if (_auction!.status == 'ended') {
       backgroundColor = Colors.orange;
       icon = Icons.timer_off;
       text = 'AUCTION ENDED';
+    } else if (_auction!.status == 'pending_approval') {
+      backgroundColor = Colors.orange;
+      icon = Icons.hourglass_empty;
+      text = 'PENDING ADMIN APPROVAL';
+    } else if (_auction!.status == 'created') {
+      // Calculate time until start
+      final timeUntilStart = _auction!.startTime.difference(DateTime.now());
+      if (timeUntilStart.inMinutes <= 5 && timeUntilStart.inSeconds > 0) {
+        backgroundColor = Colors.green.shade600;
+        icon = Icons.schedule;
+        text =
+            'STARTING SOON (${timeUntilStart.inMinutes}m ${timeUntilStart.inSeconds % 60}s)';
+      } else {
+        backgroundColor = Colors.blue;
+        icon = Icons.schedule;
+        text = 'SCHEDULED - STARTS ${_formatDateTime(_auction!.startTime)}';
+      }
     } else {
       backgroundColor = Colors.blue;
       icon = Icons.schedule;
@@ -390,7 +516,7 @@ class _FarmerAuctionMonitorScreenState
             children: [
               _buildBidStatColumn(
                 Icons.people,
-                '${_auction!.bidderCount}',
+                _auction!.currentBid != null ? '1+' : '0',
                 'Bidders',
               ),
               Container(width: 1, height: 40, color: Colors.white24),
@@ -439,13 +565,13 @@ class _FarmerAuctionMonitorScreenState
           _buildTimelineItem(
             'Ends',
             _formatDateTime(_auction!.endTime),
-            _auction!.isLive,
+            _auction!.status == 'active',
           ),
-          if (_auction!.isEnded)
+          if (_auction!.status == 'ended')
             _buildTimelineItem(
               'Settled',
-              _auction!.isSettled ? 'Complete' : 'Pending',
-              _auction!.isSettled,
+              _auction!.status == 'settled' ? 'Complete' : 'Pending',
+              _auction!.status == 'settled',
             ),
         ],
       ),
@@ -501,7 +627,7 @@ class _FarmerAuctionMonitorScreenState
                         ),
                       ),
                       Text(
-                        _auction!.currentBidderName ?? 'Anonymous',
+                        _auction!.highestBidder ?? 'Anonymous',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -637,5 +763,104 @@ class _FarmerAuctionMonitorScreenState
 
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+/// Dialog for requesting emergency cancellation with predefined reasons
+class _EmergencyCancellationDialog extends StatefulWidget {
+  @override
+  State<_EmergencyCancellationDialog> createState() =>
+      __EmergencyCancellationDialogState();
+}
+
+class __EmergencyCancellationDialogState
+    extends State<_EmergencyCancellationDialog> {
+  final _reasonController = TextEditingController();
+  String _selectedReason = '';
+
+  final List<String> _predefinedReasons = [
+    'Quality issue discovered',
+    'Lot damaged or compromised',
+    'Error in lot details',
+    'Force majeure (natural disaster, etc.)',
+    'Other',
+  ];
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Request Emergency Cancellation'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '⚠️ Emergency cancellations require admin approval',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              decoration: const InputDecoration(
+                labelText: 'Reason',
+                border: OutlineInputBorder(),
+              ),
+              items: _predefinedReasons
+                  .map((reason) => DropdownMenuItem(
+                        value: reason,
+                        child: Text(reason),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                setState(() => _selectedReason = value!);
+              },
+            ),
+            if (_selectedReason == 'Other') ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: _reasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Please specify',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _selectedReason.isEmpty
+              ? null
+              : () {
+                  final reason = _selectedReason == 'Other'
+                      ? _reasonController.text
+                      : _selectedReason;
+                  if (reason.isEmpty) return;
+                  Navigator.pop(context, reason);
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            disabledBackgroundColor: Colors.grey,
+          ),
+          child: const Text('Submit Request'),
+        ),
+      ],
+    );
   }
 }

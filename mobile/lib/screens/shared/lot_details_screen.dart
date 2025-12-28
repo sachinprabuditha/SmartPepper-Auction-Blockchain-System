@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import '../../config/theme.dart';
 import '../../services/api_service.dart';
 import '../../models/lot.dart';
+import '../../providers/auth_provider.dart';
+import '../farmer/create_auction_screen.dart';
 
 class LotDetailsScreen extends StatefulWidget {
   final String lotId;
@@ -127,6 +129,10 @@ class _LotDetailsScreenState extends State<LotDetailsScreen> {
 
                           // Status Card
                           _buildStatusCard(),
+                          const SizedBox(height: 16),
+
+                          // Create Auction Button (only for farmer-owned lots)
+                          _buildCreateAuctionButton(context),
                         ],
                       ),
                     ),
@@ -432,6 +438,96 @@ class _LotDetailsScreenState extends State<LotDetailsScreen> {
                     ),
                   ],
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCreateAuctionButton(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    final currentUserAddress = authProvider.user?.walletAddress?.toLowerCase();
+    final lotOwnerAddress = _lot?.farmerAddress?.toLowerCase();
+
+    // Only show button if:
+    // 1. User is authenticated
+    // 2. User is the lot owner
+    // 3. Lot status is approved or available
+    final isOwner = currentUserAddress != null &&
+        lotOwnerAddress != null &&
+        currentUserAddress == lotOwnerAddress;
+    final canCreateAuction = isOwner &&
+        (_lot?.status.toLowerCase() == 'approved' ||
+            _lot?.status.toLowerCase() == 'available' ||
+            _lot?.status.toLowerCase() == 'passed');
+
+    if (!canCreateAuction) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      color: AppTheme.forestGreen,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.gavel, color: AppTheme.pepperGold),
+                const SizedBox(width: 8),
+                const Text(
+                  'Ready for Auction',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'This lot is eligible for auction. Create an auction to start receiving bids from buyers.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white70,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // Navigate to create auction screen
+                  // Note: Since this screen uses a different Lot model,
+                  // we navigate without preselection and let the farmer
+                  // select this specific lot from the list
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CreateAuctionScreen(),
+                    ),
+                  ).then((_) {
+                    // Show a helpful message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                            'Select lot ${_lot!.lotId} to create an auction'),
+                        backgroundColor: AppTheme.forestGreen,
+                      ),
+                    );
+                  });
+                },
+                icon: const Icon(Icons.gavel),
+                label: const Text('Create Auction for This Lot'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.pepperGold,
+                  foregroundColor: AppTheme.forestGreen,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
               ),
             ),
           ],

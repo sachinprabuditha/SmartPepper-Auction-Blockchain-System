@@ -17,6 +17,8 @@ class Auction {
   final String status;
   final String? variety;
   final double? quantity;
+  final String? blockchainTxHash;
+  final bool compliancePassed;
 
   Auction({
     required this.id,
@@ -32,33 +34,47 @@ class Auction {
     required this.status,
     this.variety,
     this.quantity,
+    this.blockchainTxHash,
+    this.compliancePassed = false,
   });
 
   factory Auction.fromJson(Map<String, dynamic> json) {
     return Auction(
       id: json['id']?.toString() ?? '',
-      auctionId: json['auction_id'] ?? json['auctionId'] ?? '',
+      auctionId:
+          json['auction_id']?.toString() ?? json['auctionId']?.toString() ?? '',
       tokenId:
           json['token_id']?.toString() ?? json['tokenId']?.toString() ?? '',
-      lotId: json['lot_id'] ?? json['lotId'] ?? '',
-      farmerAddress: json['farmer_address'] ?? json['farmerAddress'] ?? '',
+      lotId: json['lot_id']?.toString() ?? json['lotId']?.toString() ?? '',
+      farmerAddress: json['farmer_address']?.toString() ??
+          json['farmerAddress']?.toString() ??
+          '',
       startingPrice: double.tryParse(json['starting_price']?.toString() ??
               json['startingPrice']?.toString() ??
+              json['start_price']?.toString() ??
+              json['reserve_price']?.toString() ??
               '0') ??
           0.0,
       currentBid: double.tryParse(json['current_bid']?.toString() ??
               json['currentBid']?.toString() ??
               '0') ??
           0.0,
-      highestBidder: json['highest_bidder'] ?? json['highestBidder'],
-      startTime:
-          DateTime.tryParse(json['start_time'] ?? json['startTime'] ?? '') ??
-              DateTime.now(),
-      endTime: DateTime.tryParse(json['end_time'] ?? json['endTime'] ?? '') ??
+      highestBidder: json['highest_bidder']?.toString() ??
+          json['highestBidder']?.toString(),
+      startTime: DateTime.tryParse(json['start_time']?.toString() ??
+              json['startTime']?.toString() ??
+              '') ??
           DateTime.now(),
-      status: json['status'] ?? 'created',
-      variety: json['variety'],
+      endTime: DateTime.tryParse(json['end_time']?.toString() ??
+              json['endTime']?.toString() ??
+              '') ??
+          DateTime.now(),
+      status: json['status']?.toString() ?? 'created',
+      variety: json['variety']?.toString(),
       quantity: double.tryParse(json['quantity']?.toString() ?? '0'),
+      blockchainTxHash: json['blockchain_tx_hash']?.toString(),
+      compliancePassed:
+          json['compliance_passed'] == true || json['compliancePassed'] == true,
     );
   }
 }
@@ -100,15 +116,20 @@ class AuctionProvider with ChangeNotifier {
     });
   }
 
-  Future<void> fetchAuctions() async {
+  Future<void> fetchAuctions({String? farmerAddress}) async {
     _loading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final response = await apiService.getAuctions();
+      print('🔍 Fetching auctions for farmer: $farmerAddress');
+      final response =
+          await apiService.getAuctions(farmerAddress: farmerAddress);
+      print('✅ Received ${response.length} auctions from API');
       _auctions = response.map((json) => Auction.fromJson(json)).toList();
+      print('✅ Parsed ${_auctions.length} auction objects');
     } catch (e) {
+      print('❌ Error fetching auctions: $e');
       _error = e.toString();
     }
 

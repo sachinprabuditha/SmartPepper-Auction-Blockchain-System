@@ -113,6 +113,25 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Governance Section */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Auction Governance</h2>
+          <Link
+            href="/dashboard/admin/governance"
+            className="block bg-gradient-to-r from-purple-600 to-purple-800 rounded-lg p-6 text-white hover:from-purple-700 hover:to-purple-900 transition shadow-lg"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl mb-2">🛡️ Governance & Rule Management</div>
+                <div className="text-purple-100">
+                  Define auction templates, set bid increments, approve emergency cancellations, and audit logs
+                </div>
+              </div>
+              <div className="text-4xl">→</div>
+            </div>
+          </Link>
+        </div>
+
         {/* System Stats */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">System Overview</h2>

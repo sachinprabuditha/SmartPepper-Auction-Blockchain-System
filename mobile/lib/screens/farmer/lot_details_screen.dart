@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../providers/lot_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../config/theme.dart';
 import '../../services/api_service.dart';
 import 'add_certification_screen.dart';
 import 'add_processing_stage_screen.dart';
+import 'create_auction_screen.dart';
 
 class LotDetailsScreen extends StatelessWidget {
   final Lot lot;
@@ -588,10 +591,57 @@ class LotDetailsScreen extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            _buildCreateAuctionButton(context),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildCreateAuctionButton(BuildContext context) {
+    // Get current user's wallet address
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserAddress = authProvider.user?.walletAddress?.toLowerCase();
+    final lotOwnerAddress = lot.farmerAddress.toLowerCase();
+
+    // Only show button if:
+    // 1. User is authenticated
+    // 2. User is the lot owner
+    // 3. Lot status is approved, available, or passed
+    final isOwner =
+        currentUserAddress != null && currentUserAddress == lotOwnerAddress;
+    final normalizedStatus = lot.complianceStatus.toLowerCase().trim();
+    final canCreateAuction = isOwner &&
+        (normalizedStatus == 'approved' || normalizedStatus == 'passed');
+
+    if (!canCreateAuction) {
+      return const SizedBox.shrink();
+    } else {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CreateAuctionScreen(
+                  preselectedLot: lot,
+                ),
+              ),
+            );
+          },
+          icon: const Icon(Icons.gavel),
+          label: const Text('Create Auction for This Lot'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.pepperGold,
+            foregroundColor: AppTheme.forestGreen,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            elevation: 3,
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _runComplianceCheck(BuildContext context) async {

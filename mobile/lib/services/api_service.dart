@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import '../config/env.dart';
 
 class ApiService {
@@ -17,6 +18,25 @@ class ApiService {
       ),
     );
 
+    // Add comprehensive HTTP logging
+    _dio.interceptors.add(
+      PrettyDioLogger(
+        requestHeader: true,
+        requestBody: true,
+        responseBody: true,
+        responseHeader: true,
+        error: true,
+        compact: false,
+        maxWidth: 120,
+        enabled: true, // Set to false in production
+        filter: (options, args) {
+          // Log all requests
+          return true;
+        },
+      ),
+    );
+
+    // Add auth token interceptor
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -25,10 +45,20 @@ class ApiService {
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+          print('🔹 REQUEST: ${options.method} ${options.uri}');
           return handler.next(options);
         },
+        onResponse: (response, handler) {
+          print(
+              '✅ RESPONSE: ${response.statusCode} ${response.requestOptions.uri}');
+          return handler.next(response);
+        },
         onError: (error, handler) {
-          print('API Error: ${error.message}');
+          print('❌ API Error: ${error.message}');
+          if (error.response != null) {
+            print('   Status: ${error.response?.statusCode}');
+            print('   Data: ${error.response?.data}');
+          }
           return handler.next(error);
         },
       ),
@@ -128,9 +158,16 @@ class ApiService {
   }
 
   // Auction endpoints
-  Future<List<dynamic>> getAuctions() async {
+  Future<List<dynamic>> getAuctions({String? farmerAddress}) async {
     try {
-      final response = await _dio.get('/auctions');
+      final queryParams = <String, dynamic>{};
+      if (farmerAddress != null && farmerAddress.isNotEmpty) {
+        queryParams['farmer'] = farmerAddress;
+      }
+      final response = await _dio.get(
+        '/auctions',
+        queryParameters: queryParams,
+      );
       return response.data['auctions'] ?? [];
     } catch (e) {
       rethrow;

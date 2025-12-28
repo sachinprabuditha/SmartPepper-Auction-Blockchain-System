@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import '../../providers/auth_provider.dart';
 import '../../providers/auction_provider.dart';
@@ -63,25 +64,10 @@ class _AuctionDetailsScreenState extends State<AuctionDetailsScreen> {
   }
 
   void _loadBidHistory() {
-    // Simulate bid history - in real app, load from API
+    // TODO: Load bid history from API
+    // For now, show empty state as no real bids exist yet
     setState(() {
-      _bidHistory = [
-        {
-          'bidder': '0x742d...9f5e',
-          'amount': widget.auction.currentBid,
-          'time': DateTime.now().subtract(const Duration(minutes: 2)),
-        },
-        {
-          'bidder': '0x1a3b...2c4d',
-          'amount': widget.auction.currentBid - 50,
-          'time': DateTime.now().subtract(const Duration(minutes: 15)),
-        },
-        {
-          'bidder': '0x5e7f...8a9b',
-          'amount': widget.auction.startingPrice,
-          'time': DateTime.now().subtract(const Duration(hours: 1)),
-        },
-      ];
+      _bidHistory = [];
     });
   }
 
@@ -155,7 +141,8 @@ class _AuctionDetailsScreenState extends State<AuctionDetailsScreen> {
     final currentAuction = auctionProvider.currentAuction ?? widget.auction;
     final isFarmer = authProvider.user?.role.toLowerCase() == 'farmer';
     final isActive = currentAuction.status.toLowerCase() == 'active';
-    final isUpcoming = currentAuction.status.toLowerCase() == 'upcoming';
+    final isUpcoming = currentAuction.status.toLowerCase() ==
+        'created'; // Backend uses 'created' for upcoming
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -412,12 +399,22 @@ class _AuctionDetailsScreenState extends State<AuctionDetailsScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            '\$${auction.currentBid.toStringAsFixed(2)}',
+            '\$${(auction.currentBid > 0 ? auction.currentBid : auction.startingPrice).toStringAsFixed(2)}',
             style: const TextStyle(
               fontSize: 42,
               fontWeight: FontWeight.bold,
               color: AppTheme.forestGreen,
               height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            auction.currentBid > 0
+                ? 'Current Highest Bid'
+                : 'Starting Price - No bids yet',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
             ),
           ),
           const SizedBox(height: 12),
@@ -565,9 +562,26 @@ class _AuctionDetailsScreenState extends State<AuctionDetailsScreen> {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('View lot details')),
-                );
+                // Navigate to lot details screen based on user role
+                final authProvider = context.read<AuthProvider>();
+                final isFarmer =
+                    authProvider.user?.role.toLowerCase() == 'farmer';
+
+                if (isFarmer) {
+                  // Navigate to farmer lot details screen
+                  Navigator.pushNamed(
+                    context,
+                    '/farmer/lot-details',
+                    arguments: {'lotId': auction.lotId},
+                  );
+                } else {
+                  // For buyers, show lot details in a dialog or separate screen
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Lot details view for buyers coming soon'),
+                    ),
+                  );
+                }
               },
               icon: const Icon(Icons.visibility),
               label: const Text('View Full Lot Details'),
@@ -633,7 +647,7 @@ class _AuctionDetailsScreenState extends State<AuctionDetailsScreen> {
           _buildDetailRow(
             Icons.account_balance_wallet,
             'Wallet Address',
-            '${auction.farmerAddress.substring(0, 6)}...${auction.farmerAddress.substring(auction.farmerAddress.length - 4)}',
+            _formatAddress(auction.farmerAddress),
             copyable: true,
             fullValue: auction.farmerAddress,
           ),
@@ -880,11 +894,36 @@ class _AuctionDetailsScreenState extends State<AuctionDetailsScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('View on blockchain explorer')),
-                );
-              },
+              onPressed: auction.blockchainTxHash != null &&
+                      auction.blockchainTxHash!.isNotEmpty
+                  ? () async {
+                      // Hardhat local blockchain explorer URL
+                      // You can change this to your blockchain explorer URL
+                      final url = Uri.parse(
+                          'http://localhost:8545/tx/${auction.blockchainTxHash}');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url,
+                            mode: LaunchMode.externalApplication);
+                      } else {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Transaction Hash: ${auction.blockchainTxHash}'),
+                              duration: const Duration(seconds: 5),
+                              action: SnackBarAction(
+                                label: 'Copy',
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(
+                                      text: auction.blockchainTxHash!));
+                                },
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  : null,
               icon: const Icon(Icons.open_in_new),
               label: const Text('View on Blockchain'),
               style: OutlinedButton.styleFrom(
@@ -1077,6 +1116,13 @@ class _AuctionDetailsScreenState extends State<AuctionDetailsScreen> {
 
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _formatAddress(String address) {
+    if (address.isEmpty || address.length < 10) {
+      return address; // Return as-is if too short
+    }
+    return '${address.substring(0, 6)}...${address.substring(address.length - 4)}';
   }
 
   String _formatTimeAgo(DateTime dateTime) {

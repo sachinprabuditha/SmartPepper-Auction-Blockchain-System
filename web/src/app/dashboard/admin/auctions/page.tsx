@@ -6,22 +6,21 @@ import { useEffect, useState } from 'react';
 import { Gavel, Search, Clock, CheckCircle, PlayCircle, StopCircle } from 'lucide-react';
 
 interface Auction {
-  id: string;
-  tokenId: string;
-  lotId: string;
-  lotDetails?: {
-    variety: string;
-    quantity: number;
-  };
-  farmerName: string;
-  farmerAddress: string;
-  startingPrice: string;
-  currentBid: string;
-  highestBidder?: string;
-  startTime: string;
-  endTime: string;
+  auction_id: number;
+  lot_id: string;
+  farmer_address: string;
+  farmer_name?: string;
+  reserve_price: string;
+  current_price: string;
+  highest_bidder?: string;
+  start_time: string;
+  end_time: string;
   status: string;
-  totalBids: number;
+  total_bids?: number;
+  variety?: string;
+  quantity?: number;
+  quality?: string;
+  origin?: string;
 }
 
 export default function ManageAuctionsPage() {
@@ -94,9 +93,10 @@ export default function ManageAuctionsPage() {
   };
 
   const filteredAuctions = auctions.filter(auction => {
-    const matchesSearch = (auction.tokenId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (auction.lotId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (auction.farmerName || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (auction.auction_id?.toString() || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (auction.lot_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (auction.farmer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (auction.farmer_address || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || auction.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -146,7 +146,7 @@ export default function ManageAuctionsPage() {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by token ID, lot ID, farmer..."
+                  placeholder="Search by auction ID, lot ID, farmer name or address..."
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
                 />
               </div>
@@ -192,7 +192,7 @@ export default function ManageAuctionsPage() {
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
             <div className="text-sm text-gray-600 dark:text-gray-400">Total Bids</div>
             <div className="text-2xl font-bold text-purple-600">
-              {auctions.reduce((sum, a) => sum + (a.totalBids || 0), 0)}
+              {auctions.reduce((sum, a) => sum + (a.total_bids || 0), 0)}
             </div>
           </div>
         </div>
@@ -232,46 +232,54 @@ export default function ManageAuctionsPage() {
                   </tr>
                 ) : (
                   filteredAuctions.map((auction) => (
-                    <tr key={auction.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <tr key={auction.auction_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            Token #{auction.tokenId}
+                            Auction #{auction.auction_id}
                           </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {auction.farmerName}
+                            {auction.farmer_name || 'Unknown Farmer'}
+                          </div>
+                          <div className="text-xs text-gray-400 dark:text-gray-500 font-mono">
+                            {auction.farmer_address?.slice(0, 6)}...{auction.farmer_address?.slice(-4)}
                           </div>
                           <div className="text-xs text-gray-400 dark:text-gray-500">
-                            {auction.totalBids || 0} bids
+                            {auction.total_bids || 0} bids
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 dark:text-white">
-                          <div><strong>Lot:</strong> {auction.lotId}</div>
-                          {auction.lotDetails && (
-                            <>
-                              <div className="text-gray-600 dark:text-gray-400">
-                                {auction.lotDetails.variety}
-                              </div>
-                              <div className="text-gray-600 dark:text-gray-400">
-                                {auction.lotDetails.quantity} kg
-                              </div>
-                            </>
+                          <div><strong>Lot:</strong> {auction.lot_id}</div>
+                          {auction.variety && (
+                            <div className="text-gray-600 dark:text-gray-400">
+                              {auction.variety}
+                            </div>
+                          )}
+                          {auction.quantity && (
+                            <div className="text-gray-600 dark:text-gray-400">
+                              {auction.quantity} kg
+                            </div>
+                          )}
+                          {auction.quality && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Quality: {auction.quality}
+                            </div>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm">
                           <div className="text-gray-900 dark:text-white">
-                            <strong>Current:</strong> {auction.currentBid} ETH
+                            <strong>Current:</strong> {parseFloat(auction.current_price || '0').toFixed(4)} ETH
                           </div>
                           <div className="text-gray-500 dark:text-gray-400">
-                            Starting: {auction.startingPrice} ETH
+                            Reserve: {parseFloat(auction.reserve_price || '0').toFixed(4)} ETH
                           </div>
-                          {auction.highestBidder && (
+                          {auction.highest_bidder && auction.highest_bidder !== '0x0000000000000000000000000000000000000000' && (
                             <div className="text-xs text-gray-400 dark:text-gray-500 font-mono">
-                              {auction.highestBidder.slice(0, 6)}...{auction.highestBidder.slice(-4)}
+                              {auction.highest_bidder.slice(0, 6)}...{auction.highest_bidder.slice(-4)}
                             </div>
                           )}
                         </div>
@@ -280,10 +288,13 @@ export default function ManageAuctionsPage() {
                         <div className="text-sm">
                           <div className="text-gray-900 dark:text-white flex items-center">
                             <Clock className="w-4 h-4 mr-1" />
-                            {getTimeRemaining(auction.endTime)}
+                            {getTimeRemaining(auction.end_time)}
                           </div>
                           <div className="text-gray-500 dark:text-gray-400">
-                            Ends: {new Date(auction.endTime).toLocaleDateString()}
+                            Ends: {new Date(auction.end_time).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-gray-400 dark:text-gray-500">
+                            {new Date(auction.end_time).toLocaleTimeString()}
                           </div>
                         </div>
                       </td>
@@ -292,12 +303,12 @@ export default function ManageAuctionsPage() {
                           {auction.status === 'active' && <PlayCircle className="w-3 h-3 mr-1" />}
                           {auction.status === 'ended' && <StopCircle className="w-3 h-3 mr-1" />}
                           {auction.status === 'settled' && <CheckCircle className="w-3 h-3 mr-1" />}
-                          {auction.status}
+                          {auction.status.toUpperCase()}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <button
-                          onClick={() => router.push(`/auctions/${auction.tokenId}`)}
+                          onClick={() => router.push(`/auctions/${auction.auction_id}`)}
                           className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300"
                         >
                           View Details
