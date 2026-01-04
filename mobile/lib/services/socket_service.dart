@@ -61,28 +61,28 @@ class SocketService {
   }
 
   void onNewBid(Function(dynamic) callback) {
-    _socket.on('newBid', callback);
+    _socket.on('new_bid', callback);  // Match backend event name
   }
 
   void onAuctionEnd(Function(dynamic) callback) {
-    _socket.on('auctionEnded', callback);
+    _socket.on('auction_ended', callback);  // Match backend event name
   }
 
   void onAuctionUpdate(Function(dynamic) callback) {
-    _socket.on('auctionUpdate', callback);
+    _socket.on('auction_update', callback);  // Match backend event name
   }
 
   // Remove listeners
   void offNewBid() {
-    _socket.off('newBid');
+    _socket.off('new_bid');
   }
 
   void offAuctionEnd() {
-    _socket.off('auctionEnded');
+    _socket.off('auction_ended');
   }
 
   void offAuctionUpdate() {
-    _socket.off('auctionUpdate');
+    _socket.off('auction_update');
   }
 
   // Generic methods for custom events

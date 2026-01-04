@@ -530,7 +530,8 @@ class LotDetailsScreen extends StatelessWidget {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                                'Refresh the page to see updated certifications'),
+                                'Refresh the page to see updated certifications',
+                                style: TextStyle(color: Colors.white)),
                             backgroundColor: AppTheme.forestGreen,
                           ),
                         );
@@ -576,7 +577,7 @@ class LotDetailsScreen extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
-                            'Processing stage added! Refresh to see updates'),
+                            'Processing stage added! Refresh to see updates', style: TextStyle(color: Colors.white)),
                         backgroundColor: AppTheme.forestGreen,
                       ),
                     );

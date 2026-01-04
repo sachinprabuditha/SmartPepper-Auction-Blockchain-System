@@ -23,7 +23,7 @@ export default function EscrowDepositPage({ params }: EscrowPageProps) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [txHash, setTxHash] = useState('');
-  const [wallet Connected, setWalletConnected] = useState(false);
+  const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
 
   const auctionId = parseInt(params.auctionId);

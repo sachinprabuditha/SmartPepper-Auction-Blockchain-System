@@ -338,7 +338,7 @@ class _AddProcessingStageScreenState extends State<AddProcessingStageScreen> {
         const SizedBox(height: 12),
         TextFormField(
           controller: _moistureController,
-          style: const TextStyle(color: Colors.black87),
+          style: const TextStyle(color: Colors.white),
           keyboardType: TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
             labelText: 'Moisture Content (%)',
@@ -363,7 +363,7 @@ class _AddProcessingStageScreenState extends State<AddProcessingStageScreen> {
         const SizedBox(height: 12),
         TextFormField(
           controller: _temperatureController,
-          style: const TextStyle(color: Colors.black87),
+          style: const TextStyle(color: Colors.white),
           keyboardType: TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
             labelText: 'Temperature (°C)',
@@ -381,7 +381,7 @@ class _AddProcessingStageScreenState extends State<AddProcessingStageScreen> {
         const SizedBox(height: 12),
         TextFormField(
           controller: _durationHoursController,
-          style: const TextStyle(color: Colors.black87),
+          style: const TextStyle(color: Colors.white),
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(
             labelText: 'Duration (hours)',
@@ -442,7 +442,7 @@ class _AddProcessingStageScreenState extends State<AddProcessingStageScreen> {
         const SizedBox(height: 12),
         TextFormField(
           controller: _colorController,
-          style: const TextStyle(color: Colors.black87),
+          style: const TextStyle(color: Colors.white),
           decoration: const InputDecoration(
             labelText: 'Color',
             hintText: 'e.g., Black, White, Green',
@@ -459,7 +459,7 @@ class _AddProcessingStageScreenState extends State<AddProcessingStageScreen> {
         const SizedBox(height: 12),
         TextFormField(
           controller: _uniformityController,
-          style: const TextStyle(color: Colors.black87),
+          style: const TextStyle(color: Colors.white),
           decoration: const InputDecoration(
             labelText: 'Uniformity (%)',
             hintText: 'e.g., 95',
@@ -528,7 +528,7 @@ class _AddProcessingStageScreenState extends State<AddProcessingStageScreen> {
         const SizedBox(height: 12),
         TextFormField(
           controller: _packSizeController,
-          style: const TextStyle(color: Colors.black87),
+          style: const TextStyle(color: Colors.white),
           decoration: const InputDecoration(
             labelText: 'Pack Size',
             hintText: 'e.g., 500g, 1kg',
@@ -545,7 +545,7 @@ class _AddProcessingStageScreenState extends State<AddProcessingStageScreen> {
         const SizedBox(height: 12),
         TextFormField(
           controller: _packCountController,
-          style: const TextStyle(color: Colors.black87),
+          style: const TextStyle(color: Colors.white),
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(
             labelText: 'Number of Packs',
@@ -580,7 +580,7 @@ class _AddProcessingStageScreenState extends State<AddProcessingStageScreen> {
         const SizedBox(height: 12),
         TextFormField(
           controller: _storageTypeController,
-          style: const TextStyle(color: Colors.black87),
+          style: const TextStyle(color: Colors.white),
           decoration: const InputDecoration(
             labelText: 'Storage Type',
             hintText: 'e.g., Cold Storage, Warehouse',
@@ -597,7 +597,7 @@ class _AddProcessingStageScreenState extends State<AddProcessingStageScreen> {
         const SizedBox(height: 12),
         TextFormField(
           controller: _storageTemperatureController,
-          style: const TextStyle(color: Colors.black87),
+          style: const TextStyle(color: Colors.white),
           keyboardType: TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
             labelText: 'Storage Temperature (°C)',
@@ -615,7 +615,7 @@ class _AddProcessingStageScreenState extends State<AddProcessingStageScreen> {
         const SizedBox(height: 12),
         TextFormField(
           controller: _storageHumidityController,
-          style: const TextStyle(color: Colors.black87),
+          style: const TextStyle(color: Colors.white),
           keyboardType: TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
             labelText: 'Humidity (%)',
@@ -711,6 +711,8 @@ class _AddProcessingStageScreenState extends State<AddProcessingStageScreen> {
             // Stage Type Dropdown
             DropdownButtonFormField<String>(
               value: _selectedStageType,
+              style: const TextStyle(color: Colors.black87),
+              dropdownColor: Colors.white,
               decoration: const InputDecoration(
                 labelText: 'Stage Type *',
                 labelStyle: TextStyle(color: Colors.grey),
