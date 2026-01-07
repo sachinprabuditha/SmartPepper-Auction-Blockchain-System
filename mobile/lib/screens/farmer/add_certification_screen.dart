@@ -93,7 +93,8 @@ class _AddCertificationScreenState extends State<AddCertificationScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('✓ Certification added successfully'),
+              content: Text('✓ Certification added successfully',
+                  style: TextStyle(color: Colors.white)),
               backgroundColor: AppTheme.forestGreen,
             ),
           );

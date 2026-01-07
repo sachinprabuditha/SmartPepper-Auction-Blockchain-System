@@ -6,16 +6,19 @@ class SocketService {
   bool _connected = false;
 
   void connect() {
+    print('🔌 Connecting to WebSocket: ${Environment.wsUrl}');
     _socket = IO.io(
       Environment.wsUrl,
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .enableAutoConnect()
+          .enableReconnection()
+          .setReconnectionDelay(1000)
           .build(),
     );
 
     _socket.on('connect', (_) {
-      print('✅ Socket connected');
+      print('✅ Socket connected to ${Environment.wsUrl}');
       _connected = true;
     });
 
@@ -25,7 +28,11 @@ class SocketService {
     });
 
     _socket.on('error', (error) {
-      print('Socket error: $error');
+      print('❌ Socket error: $error');
+    });
+
+    _socket.on('connect_error', (error) {
+      print('❌ Socket connect_error: $error');
     });
   }
 
@@ -39,41 +46,43 @@ class SocketService {
   // Auction events
   void joinAuction(String auctionId) {
     if (_connected) {
-      _socket.emit('joinAuction', {'auctionId': auctionId});
-      print('Joined auction: $auctionId');
+      print('📡 Emitting join_auction for: $auctionId');
+      _socket.emit('join_auction', {'auctionId': auctionId});
+    } else {
+      print('⚠️ Cannot join auction - socket not connected');
     }
   }
 
   void leaveAuction(String auctionId) {
     if (_connected) {
-      _socket.emit('leaveAuction', {'auctionId': auctionId});
-      print('Left auction: $auctionId');
+      print('📡 Emitting leave_auction for: $auctionId');
+      _socket.emit('leave_auction', {'auctionId': auctionId});
     }
   }
 
   void onNewBid(Function(dynamic) callback) {
-    _socket.on('newBid', callback);
+    _socket.on('new_bid', callback);  // Match backend event name
   }
 
   void onAuctionEnd(Function(dynamic) callback) {
-    _socket.on('auctionEnded', callback);
+    _socket.on('auction_ended', callback);  // Match backend event name
   }
 
   void onAuctionUpdate(Function(dynamic) callback) {
-    _socket.on('auctionUpdate', callback);
+    _socket.on('auction_update', callback);  // Match backend event name
   }
 
   // Remove listeners
   void offNewBid() {
-    _socket.off('newBid');
+    _socket.off('new_bid');
   }
 
   void offAuctionEnd() {
-    _socket.off('auctionEnded');
+    _socket.off('auction_ended');
   }
 
   void offAuctionUpdate() {
-    _socket.off('auctionUpdate');
+    _socket.off('auction_update');
   }
 
   // Generic methods for custom events
