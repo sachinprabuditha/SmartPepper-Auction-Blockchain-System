@@ -131,7 +131,7 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
           },
         ),
         title: const Text(
-          'smartPepper',
+          'SmartPepper',
           style: TextStyle(
             color: AppTheme.pepperGold,
             fontWeight: FontWeight.bold,

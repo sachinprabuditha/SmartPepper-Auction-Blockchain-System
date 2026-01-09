@@ -52,7 +52,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           },
         ),
         title: const Text(
-          'smartPepper',
+          'SmartPepper',
           style: TextStyle(
             color: AppTheme.pepperGold,
             fontWeight: FontWeight.bold,
